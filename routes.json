@@ -1,0 +1,90 @@
+[
+  {
+    "busId": 10,
+    "routeName": "Kadegaon"
+  },
+  {
+    "busId": 11,
+    "routeName": "Amnapur"
+  },
+  {
+    "busId": 12,
+    "routeName": "Shirate"
+  },
+  {
+    "busId": 13,
+    "routeName": "Nagrale"
+  },
+  {
+    "busId": 14,
+    "routeName": "Devrashtre"
+  },
+  {
+    "busId": 15,
+    "routeName": "Bhalwani"
+  },
+  {
+    "busId": 16,
+    "routeName": "Chitali"
+  },
+  {
+    "busId": 17,
+    "routeName": "Vikhale"
+  },
+  {
+    "busId": 18,
+    "routeName": "Tasgaon"
+  },
+  {
+    "busId": 19,
+    "routeName": "Atpadi"
+  },
+  {
+    "busId": 20,
+    "routeName": "Bambawade"
+  },
+  {
+    "busId": 21,
+    "routeName": "Vajrachounde"
+  },
+  {
+    "busId": 22,
+    "routeName": "Khanapur"
+  },
+  {
+    "busId": 23,
+    "routeName": "Shenoli Station"
+  },
+  {
+    "busId": 24,
+    "routeName": "Tamkhadi"
+  },
+  {
+    "busId": 25,
+    "routeName": "Kharsundi"
+  },
+  {
+    "busId": 26,
+    "routeName": "Dongarsoni"
+  },
+  {
+    "busId": 27,
+    "routeName": "Pusesawali"
+  },
+  {
+    "busId": 28,
+    "routeName": "Vaduj"
+  },
+  {
+    "busId": 29,
+    "routeName": "Mhaswad"
+  },
+  {
+    "busId": 30,
+    "routeName": "Shedagewadi"
+  },
+  {
+    "busId": 31,
+    "routeName": "Vita (Mayani Road Patil Petrol Pump)"
+  }
+]

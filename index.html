@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Present Sir | Elite Fleet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --surface: rgba(255, 255, 255, 0.98);
+            --text: #0f172a;
+            --accent: #0f172a;
+            --border-live: #3b82f6;
+            --border-offline: #e2e8f0;
+            --radius-lg: 28px;
+            --radius-md: 18px;
+        }
+
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; overflow: hidden; }
+        .leaflet-marker-icon { background: none !important; border: none !important; box-shadow: none !important; }
+
+        /* Markers */
+        .user-pulse { width: 12px; height: 12px; background: var(--primary); border: 3px solid white; border-radius: 50%; position: relative; }
+        .user-pulse::after { content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px; border: 3px solid var(--primary); border-radius: 50%; animation: wave 2s infinite ease-out; opacity: 0; }
+        @keyframes wave { 0% { transform: scale(0.5); opacity: 0.8; } 100% { transform: scale(2.5); opacity: 0; } }
+
+        .bus-marker-container {
+            background: white; border-radius: 50%; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid var(--primary);
+        }
+
+        .leaflet-tooltip.bus-label {
+            background: var(--accent); color: white; border: none; border-radius: 8px;
+            padding: 4px 10px; font-weight: 700; font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Layout */
+        header {
+            position: fixed; top: 12px; left: 12px; right: 12px; z-index: 1500;
+            padding: 10px 14px; background: var(--surface); backdrop-filter: blur(20px); border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        #map-container { position: absolute; top: 0; bottom: 0; left: 0; right: 0; background: #e5e7eb; }
+        #map { height: 100%; width: 100%; }
+
+        /* Updated Sheet with Corner Radius */
+        .sheet {
+            position: fixed; background: white; z-index: 2000;
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,0.12);
+            overflow: hidden; /* Clips children to radius */
+        }
+
+        .sheet-header-sticky {
+            position: sticky; top: 0; background: white; z-index: 10;
+            padding: 24px 20px 15px; border-bottom: 1px solid #f1f5f9;
+        }
+
+        .download-btn {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            background: var(--accent); color: white; padding: 14px; border-radius: 14px;
+            text-decoration: none; font-weight: 700; font-size: 14px; margin: 15px 0 0 0;
+        }
+
+        .sheet-footer-sticky {
+            padding: 15px; text-align: center; font-size: 11px; color: #94a3b8; 
+            border-top: 1px solid #f1f5f9; background: #ffffff;
+        }
+        .sheet-footer-sticky a { color: var(--primary); text-decoration: none; font-weight: 700; }
+
+        @media (max-width: 767px) {
+            .sheet { 
+                bottom: 0; left: 0; right: 0; height: 75vh; 
+                border-radius: var(--radius-lg) var(--radius-lg) 0 0; 
+                transform: translateY(105%); 
+            }
+            .sheet.open { transform: translateY(0); }
+        }
+        @media (min-width: 768px) {
+            .sheet { 
+                top: 12px; left: 12px; bottom: 12px; width: 380px; 
+                border-radius: var(--radius-lg); 
+                transform: translateX(-110%); 
+            }
+            .sheet.open { transform: translateX(0); }
+        }
+
+        /* List Items */
+        #routesList { flex: 1; overflow-y: auto; padding: 15px 0; }
+        .route-card { 
+            padding: 16px; border-radius: 20px; background: #ffffff; 
+            border: 2px solid var(--border-offline); margin: 0 16px 12px; cursor: pointer; transition: 0.3s; 
+        }
+        .route-card.live-active { border-color: var(--border-live); background: #f0f7ff; }
+        .route-card.active { border-color: var(--primary); border-width: 3px; }
+
+        .badge { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; }
+        .running { background: #dcfce7; color: #15803d; }
+        .stopped { background: #fef9c3; color: #854d0e; }
+        .offline { background: #f1f5f9; color: #475569; }
+        
+        input#search { width: 100%; padding: 14px 18px; border-radius: 14px; border: 1px solid #e2e8f0; background: #f8fafc; margin-top: 12px; box-sizing: border-box; }
+
+        .fab { width: 56px; height: 56px; border-radius: 18px; background: white; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.12); cursor: pointer; position: fixed; z-index: 1500; display: flex; align-items: center; justify-content: center; }
+        .fab-loc { right: 16px; bottom: 30px; }
+        .fab-menu { right: 16px; bottom: 100px; background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="display:flex; align-items:center; gap:12px">
+        <div style="background:var(--primary); color:white; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+        </div>
+        <div>
+            <div id="nav-title" style="font-weight:800; font-size:16px">Present Sir</div>
+            <div id="nav-subtitle" style="font-size:9px; font-weight:600; color:#64748b">Dev by <span style="color:var(--primary)">Ranjit</span></div>
+        </div>
+    </div>
+    <div style="background:#0f172a; color:white; padding:8px 14px; border-radius:12px; text-align:center">
+        <span id="speed-val" style="font-weight:900; font-size:18px">0</span>
+        <small style="font-size:8px; font-weight:800; display:block; opacity:0.6">KM/H</small>
+    </div>
+</header>
+
+<div id="map-container"><div id="map"></div></div>
+
+<button class="fab fab-menu" onclick="toggleSheet(true)"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+<button class="fab fab-loc" onclick="centerMap('user')"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>
+
+<div id="sheet" class="sheet">
+    <div class="sheet-header-sticky">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+            <h2 style="margin:0; font-weight:800; font-size:22px">Select Route</h2>
+            <button onclick="toggleSheet(false)" style="border:none; background:#f1f5f9; padding:8px 16px; border-radius:12px; font-weight:800; cursor:pointer">Close</button>
+        </div>
+        <a href="#" class="download-btn">Download Mobile App</a>
+        <input type="text" id="search" placeholder="Search bus name..." onkeyup="renderRoutes(this.value)">
+    </div>
+    <div id="routesList"></div>
+    <div class="sheet-footer-sticky">
+        Made with ❤️ by <a href="https://ranjit485.github.io/" target="_blank">Ranjit</a>
+    </div>
+</div>
+
+<script src="https://unpkg.com/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    let routes = [], busMarkers = {}, busData = {}, userCoords = null, trackingBusId = null;
+    let userMarker = null, firstLaunch = true;
+
+    const map = L.map("map", { zoomControl: false, attributionControl: false }).setView([17.2, 74.4], 13);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png").addTo(map);
+
+    function initUserLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(pos => {
+                userCoords = [pos.coords.latitude, pos.coords.longitude];
+                if (firstLaunch) { map.flyTo(userCoords, 16); firstLaunch = false; }
+                if (!userMarker) userMarker = L.marker(userCoords, { icon: L.divIcon({ html: '<div class="user-pulse"></div>' }) }).addTo(map);
+                else userMarker.setLatLng(userCoords);
+                renderRoutes(document.getElementById('search').value);
+            }, null, { enableHighAccuracy: true });
+        }
+    }
+
+    async function fetchRoutes() {
+        const proxyUri = "https://api.allorigins.win/get?url=" + encodeURIComponent("https://presentsir-server.onrender.com/ps/api/public/buses");
+        try {
+            const response = await fetch(proxyUri);
+            const data = await response.json();
+            routes = JSON.parse(data.contents);
+            initLiveTracking();
+            renderRoutes();
+        } catch (e) { setTimeout(fetchRoutes, 3000); }
+    }
+
+    function initLiveTracking() {
+        const socket = new WebSocket("wss://presentsir-server.onrender.com/ps/ws");
+        const client = Stomp.over(socket);
+        client.debug = null;
+        client.connect({ iam: "receiver" }, () => {
+            routes.forEach(r => {
+                client.subscribe(`/topic/location/${r.busId}`, msg => {
+                    const data = JSON.parse(msg.body);
+                    busData[r.busId] = { pos: [data.latitude, data.longitude], speed: Math.round(data.speed || 0), stop: data.lastStop || "In Transit" };
+                    if (r.busId === trackingBusId) {
+                        document.getElementById('nav-title').innerText = r.routeName;
+                        document.getElementById('speed-val').innerText = busData[r.busId].speed;
+                    }
+                    if (!busMarkers[r.busId]) {
+                        const icon = L.divIcon({ 
+                            html: `<div class="bus-marker-container"><img src="https://cdn-icons-png.flaticon.com/512/3448/3448339.png" style="width:24px;"></div>`, 
+                            iconSize: [40, 40], iconAnchor: [20, 20] 
+                        });
+                        busMarkers[r.busId] = L.marker(busData[r.busId].pos, { icon }).addTo(map)
+                            .bindTooltip(r.routeName, { permanent: true, direction: 'top', offset: [0, -20], className: 'bus-label' });
+                    } else {
+                        busMarkers[r.busId].setLatLng(busData[r.busId].pos);
+                    }
+                    renderRoutes(document.getElementById('search').value);
+                });
+            });
+        });
+    }
+
+    function renderRoutes(filter = "") {
+        const list = document.getElementById("routesList");
+        list.innerHTML = "";
+        const filteredSorted = routes
+            .filter(r => r.routeName.toLowerCase().includes(filter.toLowerCase()))
+            .sort((a, b) => {
+                const aLive = !!busData[a.busId];
+                const bLive = !!busData[b.busId];
+                if (aLive === bLive) return a.routeName.localeCompare(b.routeName);
+                return aLive ? -1 : 1;
+            });
+
+        filteredSorted.forEach(r => {
+            const bus = busData[r.busId];
+            const isLive = !!bus;
+            const dist = (isLive && userCoords) ? (map.distance(userCoords, bus.pos)/1000) : null;
+            const div = document.createElement("div");
+            div.className = `route-card ${isLive ? 'live-active' : ''} ${r.busId === trackingBusId ? 'active' : ''}`;
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between">
+                    <div style="font-weight:800; color:var(--text)">${r.routeName}</div>
+                    <div style="font-weight:900; color:var(--primary)">${dist ? dist.toFixed(1) + ' km' : '--'}</div>
+                </div>
+                <div style="margin-top:8px">
+                    <span class="badge ${isLive ? (bus.speed > 0 ? 'running' : 'stopped') : 'offline'}">
+                        ${isLive ? (bus.speed > 0 ? 'Running' : 'Stopped') : 'Offline'}
+                    </span>
+                </div>
+            `;
+            div.onclick = () => { if(isLive) { trackingBusId = r.busId; toggleSheet(false); map.flyTo(bus.pos, 17); } };
+            list.appendChild(div);
+        });
+    }
+
+    function toggleSheet(open) {
+        const sheet = document.getElementById("sheet");
+        if(open) sheet.classList.add("open"); else sheet.classList.remove("open");
+    }
+    
+    function centerMap(type) { if (type === 'user' && userCoords) map.flyTo(userCoords, 16); }
+
+    initUserLocation();
+    fetchRoutes();
+</script>
+</body>
+</html>
